@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tripzy AI | Smart Itinerary Planner</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+<style>
+    :root {
+        --primary: #ff7e5f;
+        --secondary: #feb47b;
+        --dark: #1e3c72;
+        --success: #2ecc71;                                  
+        --whatsapp: #25D366;
+        --light-bg: #f8f9fa;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+
+    body {
+        background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        padding: 40px 20px; 
+        color: white;
+    }
+
+    .container {
+        width: 100%;
+        max-width: 1000px;
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 24px;
+        padding: 40px;
+        box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+    }
+
+    h1 { text-align: center; margin-bottom: 30px; font-weight: 600; letter-spacing: 1px; }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 15px;
+        margin-bottom: 25px;
+    }
+
+    input, select {
+        padding: 14px;
+        border-radius: 12px;
+        border: none;
+        background: rgba(255, 255, 255, 0.9);
+        color: #333;
+        font-size: 14px;
+        outline: none;
+    }
+
+    .btn-group { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+
+    button {
+        flex: 1;
+        min-width: 150px;
+        padding: 16px;
+        border-radius: 12px;
+        border: none;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .btn-generate { background: linear-gradient(to right, var(--primary), var(--secondary)); color: white; }
+    .btn-generate:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(255, 126, 95, 0.4); }
+
+    .btn-pdf { background: var(--success); color: white; display: none; }
+    .btn-whatsapp { background: var(--whatsapp); color: white; display: none; }
+    .btn-clear { background: #e74c3c; color: white; display: none; }
+
+    #loading {
+        display: none;
+        text-align: center;
+        padding: 20px;
+        font-style: italic;
+        color: var(--secondary);
+    }
+
+    /* Result Card Styling */
+    .result-card {
+        margin-top: 30px;
+        background: #ffffff;
+        color: #333;
+        padding: 35px;
+        border-radius: 18px;
+        display: none;
+        animation: fadeIn 0.5s ease;
+    }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* Layout Elements */
+    .result-card h2 { color: var(--dark); margin: 30px 0 15px 0; border-bottom: 2px solid var(--primary); display: inline-block; }
+    .result-card table { width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 14px; border-radius: 8px; overflow: hidden; }
+    .result-card th, .result-card td { border: 1px solid #eee; padding: 12px; text-align: left; }
+    .result-card th { background: #f2f2f2; color: var(--dark); }
+
+    /* DAY CARDS */
+    .result-card h3 {
+        background: var(--light-bg);
+        color: var(--dark);
+        padding: 15px 20px;
+        border-radius: 12px;
+        margin-top: 25px;
+        border-left: 6px solid var(--primary);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    }
+
+    /* FOOD TABLE STYLING */
+    .result-card table:nth-of-type(2) {
+        border-left: 6px solid var(--success);
+        background: #f9fffb;
+    }
+    
+    .result-card h2:nth-of-type(2) { color: #27ae60; border-bottom: 2px solid var(--success); }
+
+    /* BOOKING BUTTONS */
+    .result-card a {
+        display: inline-block;
+        background: var(--dark);
+        color: white !important;
+        padding: 10px 20px;
+        border-radius: 8px;
+        text-decoration: none;
+        margin: 8px 5px 8px 0;
+        font-weight: 600;
+        font-size: 13px;
+        transition: 0.3s;
+    }
+    .result-card a:hover { background: var(--primary); transform: translateY(-2px); }
+
+    footer { text-align: center; margin-top: 30px; opacity: 0.6; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🌍 Tripzy AI <span style="font-weight:300">| Travel Planner</span></h1>
+
+    <div class="form-grid">
+        <input type="text" id="current_city" placeholder="From (e.g. Pune)">
+        <input type="text" id="destination_city" placeholder="To (e.g. Nagpur)">
+        <input type="number" id="days" placeholder="No. of Days">
+        <input type="text" id="budget" placeholder="Budget (e.g. ₹5000)">
+        <select id="style">
+            <option value="Backpacker">Backpacker</option>
+            <option value="Comfort" selected>Comfort</option>
+            <option value="Luxury">Luxury</option>
+        </select>
+    </div>
+
+    <div class="btn-group">
+        <button class="btn-generate" onclick="generateItinerary()">Generate Plan</button>
+        <button id="pdfBtn" class="btn-pdf" onclick="downloadPDF()">Export PDF</button>
+        <button id="whatsappBtn" class="btn-whatsapp" onclick="shareWhatsApp()">WhatsApp 📱</button>
+        <button id="clearBtn" class="btn-clear" onclick="clearPlan()">Clear Plan</button>
+    </div>
+
+    <div id="loading">✨ Curating your unique experience...</div>
+
+    <div id="result" class="result-card"></div>
+
+    <footer>Built with ❤️ for APCOER Project Expo</footer>
+</div>
+
+<script>
+    // LOAD SAVED PLAN ON REFRESH
+    window.onload = function() {
+        const savedData = localStorage.getItem("tripzy_itinerary");
+        if (savedData) {
+            displayItinerary(savedData);
+        }
+    };
+
+    function displayItinerary(itinerary) {
+        const resDiv = document.getElementById("result");
+        resDiv.innerHTML = marked.parse(itinerary);
+        resDiv.style.display = "block";
+        document.getElementById("pdfBtn").style.display = "block";
+        document.getElementById("whatsappBtn").style.display = "block";
+        document.getElementById("clearBtn").style.display = "block";
+    }
+
+    async function generateItinerary() {
+        const payload = {
+            current_city: document.getElementById("current_city").value,
+            destination_city: document.getElementById("destination_city").value,
+            days: parseInt(document.getElementById("days").value),
+            budget: document.getElementById("budget").value,
+            style: document.getElementById("style").value
+        };
+
+        if (!payload.current_city || !payload.destination_city || !payload.days) {
+            alert("Please fill in all details!"); return;
+        }
+
+        const loader = document.getElementById("loading");
+        const resDiv = document.getElementById("result");
+        
+        loader.style.display = "block";
+        resDiv.style.display = "none";
+
+        try {
+            const response = await fetch("https://tripzy-ai-1.onrender.com/generate-itinerary", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json();
+            
+            // SAVE TO STORAGE
+            localStorage.setItem("tripzy_itinerary", data.itinerary);
+            displayItinerary(data.itinerary);
+
+        } catch (error) {
+            alert("Error: Backend server not responding.");
+        } finally {
+            loader.style.display = "none";
+        }
+    }
+
+    function clearPlan() {
+        localStorage.removeItem("tripzy_itinerary");
+        location.reload();
+    }
+
+    function shareWhatsApp() {
+        const content = document.getElementById("result").innerText;
+        const encodedText = encodeURIComponent("Check out my AI Travel Plan from Tripzy:\n\n" + content);
+        window.open(`https://wa.me/?text=${encodedText}`, '_blank');
+    }
+
+    function downloadPDF() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        const content = document.getElementById("result").innerText;
+        doc.setFontSize(10);
+        const lines = doc.splitTextToSize(content, 180);
+        doc.text(lines, 10, 20);
+        doc.save("Travel_Plan.pdf");
+    }
+</script>
+
+</body>
+</html>
